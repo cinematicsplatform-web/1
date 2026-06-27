@@ -10,7 +10,7 @@ import DailymotionSearchModal from './DailymotionSearchModal';
 import YouTubeSearchModal from './YouTubeSearchModal';
 import VkSearchModal from './VkSearchModal';
 import { normalizeText } from '@/utils/textUtils';
-import { fetchTMDB } from '@/utils/tmdbUtils';
+import { fetchTMDB } from '@/utils/tmdbService';
 import ActionButtons from './ActionButtons';
 import { StarIcon } from './icons/StarIcon';
 import { ClockIcon } from './icons/ClockIcon';

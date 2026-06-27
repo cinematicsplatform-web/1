@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getPeople, savePerson, deletePerson } from '../../firebase';
 import type { Person } from '../../types';
 import { normalizeText } from '../../utils/textUtils';
-import { fetchTMDB } from '../../utils/tmdbUtils';
+import { fetchTMDB } from '../../utils/tmdbService';
 import { SearchIcon } from '../icons/SearchIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { CloseIcon } from '../icons/CloseIcon';

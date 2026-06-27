@@ -6,7 +6,7 @@ import type { Content, Season, Episode, Server } from '../../types';
 import { ContentType } from '../../types';
 import { SearchIcon, TableCellsIcon, ArrowUpTrayIcon, ExcelIcon, RefreshIcon, TrashIcon } from './AdminIcons';
 import { normalizeText } from '../../utils/textUtils';
-import { fetchTMDB } from '../../utils/tmdbUtils';
+import { fetchTMDB } from '../../utils/tmdbService';
 import { BouncingDotsLoader } from '../BouncingDotsLoader';
 import { 
     Filter, 

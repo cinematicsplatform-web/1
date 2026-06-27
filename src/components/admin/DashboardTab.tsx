@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Content } from '../../types';
-import { fetchTMDB } from '../../utils/tmdbUtils';
+import { fetchTMDB } from '../../utils/tmdbService';
 import ToggleSwitch from '../ToggleSwitch';
 import { RefreshIcon } from './AdminIcons';
 import { BouncingDotsLoader } from '../BouncingDotsLoader';
