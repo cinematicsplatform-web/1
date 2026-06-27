@@ -10,6 +10,7 @@ import DailymotionSearchModal from './DailymotionSearchModal';
 import YouTubeSearchModal from './YouTubeSearchModal';
 import VkSearchModal from './VkSearchModal';
 import { normalizeText } from '@/utils/textUtils';
+import { fetchTMDB } from '@/utils/tmdbUtils';
 import ActionButtons from './ActionButtons';
 import { StarIcon } from './icons/StarIcon';
 import { ClockIcon } from './icons/ClockIcon';
@@ -424,7 +425,7 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ isOpen, onClose, 
         setLoading(true);
         try {
             const endpointType = (type === ContentType.Movie || type === ContentType.Play || type === ContentType.Concert) ? 'movie' : 'tv';
-            const res = await fetch(`https://api.themoviedb.org/3/${endpointType}/${tmdbId}/images?api_key=${API_KEY}&include_image_language=ar,en,null`);
+            const res = await fetchTMDB(`https://api.themoviedb.org/3/${endpointType}/${tmdbId}/images?api_key=${API_KEY}&include_image_language=ar,en,null`);
             const data = await res.json();
             setImages({
                 posters: data.posters || [],
@@ -541,7 +542,7 @@ const TitleGalleryModal: React.FC<TitleGalleryModalProps> = ({ isOpen, onClose, 
         try {
             const endpointType = (type === ContentType.Movie || type === ContentType.Play || type === ContentType.Concert) ? 'movie' : 'tv';
             
-            const infoRes = await fetch(`https://api.themoviedb.org/3/${endpointType}/${tmdbId}?api_key=${API_KEY}&language=ar-SA`);
+            const infoRes = await fetchTMDB(`https://api.themoviedb.org/3/${endpointType}/${tmdbId}?api_key=${API_KEY}&language=ar-SA`);
             const info = await infoRes.json();
             
             const results: any[] = [];
@@ -551,7 +552,7 @@ const TitleGalleryModal: React.FC<TitleGalleryModalProps> = ({ isOpen, onClose, 
             if (info.original_title && info.original_title !== info.title) results.push({ title: info.original_title, iso_3166_1: info.original_language?.toUpperCase() || 'Original', type: 'Original' });
             if (info.original_name && info.original_name !== info.name) results.push({ title: info.original_name, iso_3166_1: info.original_language?.toUpperCase() || 'Original', type: 'Original' });
 
-            const altRes = await fetch(`https://api.themoviedb.org/3/${endpointType}/${tmdbId}/alternative_titles?api_key=${API_KEY}`);
+            const altRes = await fetchTMDB(`https://api.themoviedb.org/3/${endpointType}/${tmdbId}/alternative_titles?api_key=${API_KEY}`);
             const altData = await altRes.json();
             
             if (altData.titles || altData.results) {
@@ -1018,6 +1019,20 @@ const ServerManagementModal: React.FC<ServerManagementModalProps> = ({
     );
 };
 
+const getCleanedSlug = (slug: string): string => {
+    if (!slug) return '';
+    if (slug.endsWith('/')) return slug;
+    
+    // Check if the slug ends with an episode prefix pattern or symbol
+    const pattern = /[._\-\s/]([Ee]|[Ee][Pp]|[Hh])$/;
+    const endsWithSeparator = /[._\-]$/;
+    
+    if (pattern.test(slug) || endsWithSeparator.test(slug)) {
+        return slug;
+    }
+    return slug + '/';
+};
+
 interface ContentEditModalProps {
     content: Content | null;
     onClose: () => void; 
@@ -1163,6 +1178,23 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
         isOpen: false,
         seasonId: null,
         imageUrl: '',
+        applyRange: 'all',
+        fromEpisodes: '',
+        toEpisodes: ''
+    });
+
+    // --- BULK EPISODE SERVER NAMES STATE ---
+    const [bulkServerNamesState, setBulkServerNamesState] = useState<{
+        isOpen: boolean;
+        seasonId: number | null;
+        serverNames: string[];
+        applyRange: 'all' | 'range';
+        fromEpisodes: number | '';
+        toEpisodes: number | '';
+    }>({
+        isOpen: false,
+        seasonId: null,
+        serverNames: ['', '', ''],
         applyRange: 'all',
         fromEpisodes: '',
         toEpisodes: ''
@@ -1493,6 +1525,111 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
         setBulkImageState(prev => ({ ...prev, isOpen: false }));
     };
 
+    // --- BULK EPISODE SERVER NAMES FUNCTIONS ---
+    const openBulkServerNamesModal = (seasonId: number) => {
+        const season = formData.seasons?.find(s => s.id === seasonId);
+        const totalEps = season?.episodes?.length || 1;
+        
+        // Try to pre-populate with existing server names from the first episode if available
+        const firstEp = season?.episodes?.[0];
+        const defaultNames: string[] = [];
+        if (firstEp && firstEp.servers && firstEp.servers.length > 0) {
+            firstEp.servers.forEach((srv) => {
+                defaultNames.push(srv.name || '');
+            });
+        }
+        
+        while (defaultNames.length < 3) {
+            defaultNames.push('');
+        }
+
+        setBulkServerNamesState({
+            isOpen: true,
+            seasonId,
+            serverNames: defaultNames,
+            applyRange: 'all',
+            fromEpisodes: 1,
+            toEpisodes: totalEps
+        });
+    };
+
+    const handleAddServerNameField = () => {
+        setBulkServerNamesState(prev => ({
+            ...prev,
+            serverNames: [...prev.serverNames, '']
+        }));
+    };
+
+    const handleRemoveServerNameField = (index: number) => {
+        setBulkServerNamesState(prev => {
+            const updated = [...prev.serverNames];
+            if (updated.length <= 1) return prev;
+            updated.splice(index, 1);
+            return { ...prev, serverNames: updated };
+        });
+    };
+
+    const handleServerNameChange = (index: number, val: string) => {
+        setBulkServerNamesState(prev => {
+            const updated = [...prev.serverNames];
+            updated[index] = val;
+            return { ...prev, serverNames: updated };
+        });
+    };
+
+    const executeApplyBulkServerNames = () => {
+        const { seasonId, serverNames, applyRange, fromEpisodes, toEpisodes } = bulkServerNamesState;
+        if (!seasonId) return;
+
+        const hasName = serverNames.some(name => name && name.trim() !== '');
+        if (!hasName) {
+            addToast("يرجى إدخال اسم واحد على الأقل لتسمية السيرفرات.", "error");
+            return;
+        }
+
+        const sFrom = typeof fromEpisodes === 'number' ? fromEpisodes : 1;
+        const eTo = typeof toEpisodes === 'number' ? toEpisodes : 1;
+
+        if (applyRange === 'range' && eTo < sFrom) {
+            addToast("رقم الحلقة النهائية يجب أن يكون أكبر من أو يساوي الحلقة الابتدائية.", "error");
+            return;
+        }
+
+        setFormData(prev => ({
+            ...prev,
+            seasons: (prev.seasons || []).map(season => {
+                if (season.id !== seasonId) return season;
+
+                const updatedEpisodes = (season.episodes || []).map((ep) => {
+                    const epNum = extractEpisodeNumber(ep.title);
+                    let shouldApply = false;
+                    if (applyRange === 'all') {
+                        shouldApply = true;
+                    } else {
+                        shouldApply = epNum >= sFrom && epNum <= eTo;
+                    }
+
+                    if (shouldApply && ep.servers && ep.servers.length > 0) {
+                        const updatedServers = ep.servers.map((srv, idx) => {
+                            const newName = serverNames[idx];
+                            if (newName && newName.trim() !== '') {
+                                return { ...srv, name: newName.trim() };
+                            }
+                            return srv;
+                        });
+                        return { ...ep, servers: updatedServers };
+                    }
+                    return ep;
+                });
+
+                return { ...season, episodes: updatedEpisodes };
+            })
+        }));
+
+        addToast("تم تحديث وتسمية سيرفرات الحلقات بنجاح!", "success");
+        setBulkServerNamesState(prev => ({ ...prev, isOpen: false }));
+    };
+
     // --- NEW: Auto-Link Generation Functions ---
     const openAutoLinkModal = (seasonId: number) => {
         const config = formData.autoLinkConfig; 
@@ -1552,7 +1689,7 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
                         numStr = i < 10 ? `0${i}` : `${i}`;
                     }
 
-                    const cleanedSlug = seriesSlug.endsWith('/') ? seriesSlug : seriesSlug + '/';
+                    const cleanedSlug = getCleanedSlug(seriesSlug);
                     const cleanBaseDomain = baseDomain.endsWith('/') ? baseDomain.slice(0, -1) : baseDomain;
                     const generatedUrl = `${cleanBaseDomain}/${cleanedSlug}${numStr}${suffix}`;
 
@@ -1661,7 +1798,7 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
         }
         setIsSearchingCast(true);
         try {
-            const res = await fetch(`https://api.themoviedb.org/3/search/person?api_key=${API_KEY}&query=${encodeURIComponent(query)}&language=ar-SA`);
+            const res = await fetchTMDB(`https://api.themoviedb.org/3/search/person?api_key=${API_KEY}&query=${encodeURIComponent(query)}&language=ar-SA`);
             const data = await res.json();
             if (data.results) {
                 setCastResults(data.results);
@@ -1720,7 +1857,7 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
         setTmdbSearchResults([]);
 
         try {
-            const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(tmdbSearchQuery)}&language=ar-SA&page=1&include_adult=false`);
+            const res = await fetchTMDB(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(tmdbSearchQuery)}&language=ar-SA&page=1&include_adult=false`);
             const data = await res.json();
             
             if (data.results) {
@@ -1745,7 +1882,7 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
         setUpdateLoading(true);
 
         try {
-            const res = await fetch(`https://api.themoviedb.org/3/tv/${idToUse}?api_key=${API_KEY}&language=ar-SA`);
+            const res = await fetchTMDB(`https://api.themoviedb.org/3/tv/${idToUse}?api_key=${API_KEY}&language=ar-SA`);
             
             if(!res.ok) {
                 if (res.status === 404) throw new Error("لم يتم العثور على المسلسل في TMDB. تأكد من صحة كود TMDB.");
@@ -1764,7 +1901,7 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
                 let existingSeasonIndex = currentSeasons.findIndex(s => s.seasonNumber === tmdbSeason.season_number);
 
                 if (existingSeasonIndex === -1) {
-                    const sRes = await fetch(`https://api.themoviedb.org/3/tv/${idToUse}/season/${tmdbSeason.season_number}?api_key=${API_KEY}&language=ar-SA`);
+                    const sRes = await fetchTMDB(`https://api.themoviedb.org/3/tv/${idToUse}/season/${tmdbSeason.season_number}?api_key=${API_KEY}&language=ar-SA`);
                     const sData = await sRes.json();
                     
                     const mappedEpisodes: Episode[] = sData.episodes?.map((ep: any) => {
@@ -1810,7 +1947,7 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
                     const existingSeason = currentSeasons[existingSeasonIndex];
                     
                     if (tmdbSeason.episode_count > (existingSeason.episodes?.length || 0)) {
-                        const sRes = await fetch(`https://api.themoviedb.org/3/tv/${idToUse}/season/${tmdbSeason.season_number}?api_key=${API_KEY}&language=ar-SA`);
+                        const sRes = await fetchTMDB(`https://api.themoviedb.org/3/tv/${idToUse}/season/${tmdbSeason.season_number}?api_key=${API_KEY}&language=ar-SA`);
                         const sData = await sRes.json();
                         
                         const currentCount = existingSeason.episodes?.length || 0;
@@ -1875,7 +2012,7 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
         }
         
         try {
-            const sRes = await fetch(`https://api.themoviedb.org/3/tv/${idToUse}/season/${seasonNumber}?api_key=${API_KEY}&language=ar-SA`);
+            const sRes = await fetchTMDB(`https://api.themoviedb.org/3/tv/${idToUse}/season/${seasonNumber}?api_key=${API_KEY}&language=ar-SA`);
             if (!sRes.ok) throw new Error("فشل جلب الموسم من TMDB.");
             const sData = await sRes.json();
             
@@ -1933,7 +2070,7 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
 
     const fetchSeasonDetails = async (tmdbId: string, seasonNumber: number) => {
         try {
-            const res = await fetch(`https://api.themoviedb.org/3/tv/${tmdbId}/season/${seasonNumber}?api_key=${API_KEY}&language=ar-SA`);
+            const res = await fetchTMDB(`https://api.themoviedb.org/3/tv/${tmdbId}/season/${seasonNumber}?api_key=${API_KEY}&language=ar-SA`);
             if (res.ok) return await res.json();
             return null;
         } catch (e) {
@@ -1958,10 +2095,10 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
                 return `https://api.themoviedb.org/3/${typePath}/${targetId}${path}?api_key=${API_KEY}&language=${lang}&append_to_response=${append}&include_image_language=${lang},en,null`;
             };
 
-            let res = await fetch(getUrl(currentType, 'ar-SA'));
+            let res = await fetchTMDB(getUrl(currentType, 'ar-SA'));
             if (!res.ok && res.status === 404 && !isUpdateMode) {
                 const altType = isStandalone ? ContentType.Series : ContentType.Movie;
-                const resAlt = await fetch(getUrl(altType, 'ar-SA'));
+                const resAlt = await fetchTMDB(getUrl(altType, 'ar-SA'));
                 if (resAlt.ok) {
                     res = resAlt;
                     currentType = altType; 
@@ -1985,7 +2122,7 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
             }
 
             if (originLang !== 'ar') {
-                const resEn = await fetch(getUrl(currentType, 'en-US'));
+                const resEn = await fetchTMDB(getUrl(currentType, 'en-US'));
                 if (resEn.ok) {
                     const enDetails = await resEn.json();
                     if (!details.overview) details.overview = enDetails.overview;
@@ -2288,6 +2425,8 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
         }
     };
 
+
+
     const toggleSeason = (id: number) => {
         setExpandedSeasons(prev => {
             const newSet = new Set(prev);
@@ -2584,7 +2723,100 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
         }));
         addToast("تم إضافة حلقة ذكية بنجاح!", "success");
     };
-    
+
+    useEffect(() => {
+        const handleKeyDown = async (e: KeyboardEvent) => {
+            if (e.key === 'F2') {
+                e.preventDefault();
+                handleSubmit({ preventDefault: () => {} } as any, showSchedulingUI);
+            } else if (e.key === 'F5') {
+                e.preventDefault();
+                setActiveTab('categories');
+            } else if (e.key === 'F6') {
+                e.preventDefault();
+                setActiveTab('media');
+            } else if (e.key === 'F7') {
+                e.preventDefault();
+                if (isEpisodic) {
+                    setActiveTab('seasons');
+                } else {
+                    setActiveTab('servers');
+                }
+            } else if (e.key === 'F10') {
+                e.preventDefault();
+                setActiveTab('preview');
+            } else if (e.key === 'F12') {
+                if (activeTab === 'seasons' || activeTab === 'servers') {
+                    e.preventDefault();
+                    const seasons = formData.seasons || [];
+                    if (seasons.length > 0) {
+                        const latestSeason = seasons[seasons.length - 1];
+                        handleSmartAddEpisode(latestSeason.id);
+                    } else {
+                        addToast("لا يوجد مواسم مضافة بعد لإضافة حلقة ذكية!", "error");
+                    }
+                }
+            } else if (e.ctrlKey && (e.key === 'i' || e.key === 'I')) {
+                if (activeTab === 'seasons') {
+                    e.preventDefault();
+                    const seasons = formData.seasons || [];
+                    if (seasons.length > 0) {
+                        const latestSeason = seasons[seasons.length - 1];
+                        const idToUse = formData.tmdbId || formData.id;
+                        if (!idToUse) {
+                            addToast('يجب توفر كود TMDB للمحتوى.', "info");
+                            return;
+                        }
+                        
+                        try {
+                            addToast("جاري جلب تحديثات الحلقات من TMDB...", "info");
+                            const sRes = await fetchTMDB(`https://api.themoviedb.org/3/tv/${idToUse}/season/${latestSeason.seasonNumber}?api_key=${API_KEY}&language=ar-SA`);
+                            if (!sRes.ok) throw new Error("فشل جلب الموسم من TMDB.");
+                            const sData = await sRes.json();
+                            
+                            setFormData(prev => ({
+                                ...prev,
+                                seasons: (prev.seasons || []).map(s => {
+                                    if (s.id !== latestSeason.id) return s;
+                                    
+                                    const updatedEpisodes = (s.episodes || []).map(ep => {
+                                        const localEpNum = extractEpisodeNumber(ep.title);
+                                        const tmdbEp = sData.episodes?.find((tep: any) => tep.episode_number === localEpNum);
+                                        if (tmdbEp) {
+                                            const isGenericTitle = !tmdbEp.name || tmdbEp.name.match(/^Episode \d+$/i) || tmdbEp.name.match(/^الحلقة \d+$/i);
+                                            let finalDescription = tmdbEp.overview || ep.description || `شاهد أحداث الحلقة ${tmdbEp.episode_number} من الموسم ${s.seasonNumber}.`;
+                                            if (!isGenericTitle && tmdbEp.name) {
+                                                finalDescription = `${tmdbEp.name} : ${tmdbEp.overview || ''}`;
+                                            }
+                                            return {
+                                                ...ep,
+                                                thumbnail: tmdbEp.still_path ? `https://image.tmdb.org/t/p/w500${tmdbEp.still_path}` : ep.thumbnail,
+                                                description: finalDescription
+                                            };
+                                        }
+                                        return ep;
+                                    });
+                                    
+                                    return { ...s, episodes: updatedEpisodes };
+                                })
+                            }));
+                            addToast("تم تحديث صور ووصف حلقات الموسم الأخير بنجاح!", "success");
+                        } catch (err: any) {
+                            console.error(err);
+                            addToast("حدث خطأ أثناء تحديث الحلقات: " + err.message, "error");
+                        }
+                    } else {
+                        addToast("لا يوجد مواسم مضافة لتحديثها!", "error");
+                    }
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [handleSubmit, showSchedulingUI, activeTab, isEpisodic, formData, handleSmartAddEpisode]);
+
     const requestDeleteEpisode = (seasonId: number, episodeId: number, episodeTitle: string) => { 
         setDeleteEpisodeState({ isOpen: true, seasonId, episodeId, title: episodeTitle }); 
     };
@@ -3345,6 +3577,9 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
                                                     {/* زر تحديث صور الحلقات دفعة واحدة */}
                                                     <button type="button" onClick={(e) => { e.stopPropagation(); openBulkImageModal(season.id); }} className="p-2 hover:bg-purple-600/10 text-purple-400 rounded font-bold text-[10px] flex items-center gap-1 bg-purple-500/5 border border-purple-500/15" title="تحديث صور كافة الحلقات أو نطاق محدد دفعة واحدة"><PhotoIcon className="w-3.5 h-3.5 text-purple-400"/> صور الحلقات</button>
 
+                                                    {/* زر تسمية سيرفرات الحلقات دفعة واحدة */}
+                                                    <button type="button" onClick={(e) => { e.stopPropagation(); openBulkServerNamesModal(season.id); }} className="p-2 hover:bg-blue-600/10 text-blue-400 rounded font-bold text-[10px] flex items-center gap-1 bg-blue-500/5 border border-blue-500/15" title="تسمية سيرفرات كافة الحلقات أو نطاق محدد دفعة واحدة"><ServerIcon className="w-3.5 h-3.5 text-blue-400"/> تسمية السيرفرات</button>
+
                                                     {/* زر تفريغ الروابط والسيرفرات للموسم */}
                                                     <button type="button" onClick={(e) => { e.stopPropagation(); requestClearSeasonServers(season.id, season.title || `الموسم ${season.seasonNumber}`); }} className="p-2 hover:bg-amber-500/10 text-amber-500 rounded font-bold text-[10px] flex items-center gap-1 bg-amber-500/5 border border-amber-500/15" title="تفريغ كافة الروابط والسيرفرات لهذا الموسم"><TrashIcon className="w-3.5 h-3.5 text-amber-500"/> تفريغ الروابط</button>
 
@@ -3855,7 +4090,7 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
                                                             const bDom = srv ? srv.baseDomain : 'https://example-server.com';
                                                             const cleanB = bDom.endsWith('/') ? bDom.slice(0, -1) : bDom;
                                                             const slg = formData.autoLinkConfig?.seriesSlug || '';
-                                                            const cleanS = slg.endsWith('/') ? slg : slg + '/';
+                                                            const cleanS = getCleanedSlug(slg);
                                                             const sufx = formData.autoLinkConfig?.suffix || '.mp4';
                                                             const pZ = formData.autoLinkConfig?.padZero ?? true;
                                                             const pTZ = formData.autoLinkConfig?.padTwoZeros ?? false;
@@ -3878,7 +4113,7 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
                                                             const bDom = srv ? srv.baseDomain : 'https://example-server.com';
                                                             const cleanB = bDom.endsWith('/') ? bDom.slice(0, -1) : bDom;
                                                             const slg = formData.autoLinkConfig?.seriesSlug || '';
-                                                            const cleanS = slg.endsWith('/') ? slg : slg + '/';
+                                                            const cleanS = getCleanedSlug(slg);
                                                             const sufx = formData.autoLinkConfig?.suffix || '.mp4';
                                                             const pTZ = formData.autoLinkConfig?.padTwoZeros ?? false;
                                                             
@@ -4616,7 +4851,7 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
                                         const base = matchedServer ? matchedServer.baseDomain : 'https://[SERVER_DOMAIN]/';
                                         const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
                                         const slug = autoLinkState.seriesSlug || '[SERIES_SLUG]/';
-                                        const cleanSlug = slug.endsWith('/') ? slug : slug + '/';
+                                        const cleanSlug = getCleanedSlug(slug);
                                         
                                         const num = autoLinkState.startNum || 1;
                                         let numStr = `${num}`;
@@ -4724,6 +4959,119 @@ const ContentEditModal: React.FC<ContentEditModalProps> = ({ content, onClose, o
                             <button onClick={executeApplyBulkImage} className="flex-1 rounded-lg py-2.5 text-sm font-bold text-white bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-500/20 transform hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
                                 <PhotoIcon className="w-4 h-4" />
                                 تطبيق على الحلقات
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* BULK EPISODE SERVERS RENAME MODAL */}
+            {bulkServerNamesState.isOpen && (
+                <div className="fixed inset-0 z-[330] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm" onClick={() => setBulkServerNamesState(prev => ({ ...prev, isOpen: false }))}>
+                    <div className="w-full max-w-lg bg-[#0f1014] border border-blue-500/30 rounded-2xl p-6 shadow-2xl animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-800">
+                            <h3 className="text-lg font-black text-white flex items-center gap-2 font-['Cairo']">
+                                <ServerIcon className="w-6 h-6 text-blue-400"/>
+                                تسمية السيرفرات دفعة واحدة للموسم
+                            </h3>
+                            <button onClick={() => setBulkServerNamesState(prev => ({ ...prev, isOpen: false }))} className="text-gray-400 hover:text-white"><CloseIcon className="w-5 h-5"/></button>
+                        </div>
+
+                        <div className="space-y-4 font-['Cairo'] text-right">
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                                سيتم تحديث أسماء السيرفرات لحلقات هذا الموسم بالترتيب. على سبيل المثال: الاسم الأول سيتم تطبيقه على السيرفر الأول في كل حلقة، والاسم الثاني على السيرفر الثاني، وهكذا. يمكنك ترك الحقل فارغاً لعدم تعديل اسم السيرفر في ذلك الترتيب.
+                            </p>
+
+                            <div className="space-y-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                                <label className={labelClass}>أسماء السيرفرات بالترتيب</label>
+                                {bulkServerNamesState.serverNames.map((name, index) => (
+                                    <div key={index} className="flex items-center gap-2 animate-fade-in-down">
+                                        <span className="text-xs font-bold text-gray-500 w-16 text-left">سيرفر {index + 1}:</span>
+                                        <input 
+                                            type="text" 
+                                            value={name} 
+                                            onChange={e => handleServerNameChange(index, e.target.value)} 
+                                            className={`${inputClass} focus:ring-blue-500 focus:border-blue-500 py-2`}
+                                            placeholder={`مثال: سيرفر سريع، VIP، إلخ.`}
+                                        />
+                                        {bulkServerNamesState.serverNames.length > 1 && (
+                                            <button 
+                                                type="button" 
+                                                onClick={() => handleRemoveServerNameField(index)} 
+                                                className="p-2 hover:bg-red-500/10 text-red-400 hover:text-red-300 rounded-lg border border-red-500/20 transition-all flex-shrink-0"
+                                                title="حذف هذا الاسم"
+                                            >
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button 
+                                type="button" 
+                                onClick={handleAddServerNameField} 
+                                className="w-full py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-1.5"
+                            >
+                                <PlusIcon className="w-4 h-4"/>
+                                إضافة حقل اسم سيرفر إضافي
+                            </button>
+
+                            <div className="space-y-2 border-t border-gray-800/80 pt-4">
+                                <label className={labelClass}>نطاق التطبيق</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setBulkServerNamesState(prev => ({ ...prev, applyRange: 'all' }))}
+                                        className={`p-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 ${bulkServerNamesState.applyRange === 'all' ? 'bg-blue-500/10 border-blue-500 text-blue-400' : 'bg-black/40 border-gray-800 text-gray-400 hover:border-gray-700'}`}
+                                    >
+                                        <span>جميع الحلقات</span>
+                                        <span className="text-[9px] text-gray-500">تطبيق على كافة الحلقات بلا استثناء</span>
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setBulkServerNamesState(prev => ({ ...prev, applyRange: 'range' }))}
+                                        className={`p-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 ${bulkServerNamesState.applyRange === 'range' ? 'bg-blue-500/10 border-blue-500 text-blue-400' : 'bg-black/40 border-gray-800 text-gray-400 hover:border-gray-700'}`}
+                                    >
+                                        <span>نطاق محدد</span>
+                                        <span className="text-[9px] text-gray-500">تحديد حلقة ابتدائية ونهائية بالتحديد</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {bulkServerNamesState.applyRange === 'range' && (
+                                <div className="flex gap-4 animate-fade-in-down">
+                                    <div className="flex-1">
+                                        <label className={labelClass}>من الحلقة رقم</label>
+                                        <input 
+                                            type="number" 
+                                            min="1" 
+                                            value={bulkServerNamesState.fromEpisodes} 
+                                            onChange={e => setBulkServerNamesState(prev => ({ ...prev, fromEpisodes: e.target.value === '' ? '' : parseInt(e.target.value) }))} 
+                                            className={`${inputClass} focus:ring-blue-500 focus:border-blue-500`} 
+                                            placeholder="رقم البداية" 
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className={labelClass}>إلى الحلقة رقم</label>
+                                        <input 
+                                            type="number" 
+                                            min="1" 
+                                            value={bulkServerNamesState.toEpisodes} 
+                                            onChange={e => setBulkServerNamesState(prev => ({ ...prev, toEpisodes: e.target.value === '' ? '' : parseInt(e.target.value) }))} 
+                                            className={`${inputClass} focus:ring-blue-500 focus:border-blue-500`} 
+                                            placeholder="رقم النهاية" 
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 mt-6 pt-4 border-t border-gray-800 font-['Cairo']">
+                            <button onClick={() => setBulkServerNamesState(prev => ({ ...prev, isOpen: false }))} className="flex-1 rounded-lg bg-gray-800 py-2.5 text-sm font-bold text-gray-300 hover:bg-gray-700">إلغاء</button>
+                            <button onClick={executeApplyBulkServerNames} className="flex-1 rounded-lg py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/20 transform hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                                <ServerIcon className="w-4 h-4" />
+                                تطبيق الأسماء
                             </button>
                         </div>
                     </div>

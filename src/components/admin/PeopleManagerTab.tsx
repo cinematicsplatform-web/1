@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getPeople, savePerson, deletePerson } from '../../firebase';
 import type { Person } from '../../types';
 import { normalizeText } from '../../utils/textUtils';
+import { fetchTMDB } from '../../utils/tmdbUtils';
 import { SearchIcon } from '../icons/SearchIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { CloseIcon } from '../icons/CloseIcon';
@@ -74,7 +75,7 @@ const PeopleManagerTab: React.FC<PeopleManagerTabProps> = ({ addToast }) => {
     if (!tmdbSearchQuery.trim()) return;
     setIsSearchingTMDB(true);
     try {
-      const res = await fetch(`https://api.themoviedb.org/3/search/person?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(tmdbSearchQuery)}&language=ar-SA`);
+      const res = await fetchTMDB(`https://api.themoviedb.org/3/search/person?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(tmdbSearchQuery)}&language=ar-SA`);
       const data = await res.json();
       setTmdbResults(data.results || []);
     } catch (e) {
@@ -86,11 +87,11 @@ const PeopleManagerTab: React.FC<PeopleManagerTabProps> = ({ addToast }) => {
 
   const fetchPersonDetails = async (tmdbId: number) => {
     try {
-      const res = await fetch(`https://api.themoviedb.org/3/person/${tmdbId}?api_key=${TMDB_API_KEY}&language=ar-SA`);
+      const res = await fetchTMDB(`https://api.themoviedb.org/3/person/${tmdbId}?api_key=${TMDB_API_KEY}&language=ar-SA`);
       const data = await res.json();
       
       if (!data.biography) {
-        const resEn = await fetch(`https://api.themoviedb.org/3/person/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`);
+        const resEn = await fetchTMDB(`https://api.themoviedb.org/3/person/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`);
         const dataEn = await resEn.json();
         data.biography = dataEn.biography;
       }

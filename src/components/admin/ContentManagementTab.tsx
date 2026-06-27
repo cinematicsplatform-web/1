@@ -6,6 +6,7 @@ import type { Content, Season, Episode, Server } from '../../types';
 import { ContentType } from '../../types';
 import { SearchIcon, TableCellsIcon, ArrowUpTrayIcon, ExcelIcon, RefreshIcon, TrashIcon } from './AdminIcons';
 import { normalizeText } from '../../utils/textUtils';
+import { fetchTMDB } from '../../utils/tmdbUtils';
 import { BouncingDotsLoader } from '../BouncingDotsLoader';
 import { 
     Filter, 
@@ -75,21 +76,21 @@ const ContentManagementTab: React.FC<ContentManagementTabProps> = ({
 
     // Helper to evaluate watch/download linkspresence
     const hasWatchLinks = (c: Content) => {
-        if (c.type === 'movie' || c.type === 'program' || c.type === 'play' || c.type === 'concert') {
+        const isEpisodic = c.type === 'series' || c.type === 'program';
+        if (!isEpisodic) {
             return !!(c.servers && c.servers.some(s => s.url && s.url.trim() !== ''));
-        } else if (c.type === 'series') {
+        } else {
             return !!(c.seasons && c.seasons.some(s => s.episodes && s.episodes.some(ep => ep.servers && ep.servers.some(srv => srv.url && srv.url.trim() !== ''))));
         }
-        return false;
     };
 
     const hasDownloadLinks = (c: Content) => {
-        if (c.type === 'movie' || c.type === 'program' || c.type === 'play' || c.type === 'concert') {
+        const isEpisodic = c.type === 'series' || c.type === 'program';
+        if (!isEpisodic) {
             return !!(c.servers && c.servers.some(s => s.downloadUrl && s.downloadUrl.trim() !== ''));
-        } else if (c.type === 'series') {
+        } else {
             return !!(c.seasons && c.seasons.some(s => s.episodes && s.episodes.some(ep => ep.servers && ep.servers.some(srv => srv.downloadUrl && srv.downloadUrl.trim() !== ''))));
         }
-        return false;
     };
 
     // Load entire database once on mount/refresh to build smart localized indexing/filters
@@ -236,7 +237,7 @@ const ContentManagementTab: React.FC<ContentManagementTabProps> = ({
     const currentGroup = Math.floor((currentPage - 1) / pagesPerGroup);
 
     const generateExcelTemplate = () => { const moviesHeader = ["TMDB_ID", "Title", "Description", "Year", "Rating", "Genres", "Poster_URL", "Backdrop_URL", "Logo_URL", "Watch_Server_1", "Watch_Server_2", "Watch_Server_3", "Watch_Server_4", "Download_Link"]; const episodesHeader = ["Series_TMDB_ID", "Series_Name", "Season_Number", "Episode_Number", "Episode_Title", "Watch_Server_1", "Watch_Server_2", "Download_Link"]; const wb = XLSX.utils.book_new(); const wsMovies = XLSX.utils.aoa_to_sheet([moviesHeader]); const wsEpisodes = XLSX.utils.aoa_to_sheet([episodesHeader]); XLSX.utils.book_append_sheet(wb, wsMovies, "Movies"); XLSX.utils.book_append_sheet(wb, wsEpisodes, "Episodes"); XLSX.writeFile(wb, "cinematix_import_template.xlsx"); }; 
-    const fetchTMDBData = async (id: string, type: 'movie' | 'tv') => { if (!id) return null; try { const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}?api_key=${API_KEY}&language=${LANG}&append_to_response=images,credits`); if (!res.ok) return null; return await res.json(); } catch (e) { console.error("TMDB Fetch Error:", e); return null; } }; 
+    const fetchTMDBData = async (id: string, type: 'movie' | 'tv') => { if (!id) return null; try { const res = await fetchTMDB(`https://api.themoviedb.org/3/${type}/${id}?api_key=${API_KEY}&language=${LANG}&append_to_response=images,credits`); if (!res.ok) return null; return await res.json(); } catch (e) { console.error("TMDB Fetch Error:", e); return null; } }; 
     const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { 
         const file = e.target.files?.[0]; 
         if (!file) return; 

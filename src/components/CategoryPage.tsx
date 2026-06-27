@@ -137,6 +137,18 @@ const CategoryPage: React.FC<CategoryPageProps> = ({
             .filter(c => c.categories.includes('رمضان'))
             .sort((a, b) => b.createdAt ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : 0);
     }
+    else if (categoryTitle === 'مسلسلات رمضان') {
+        title = 'مسلسلات رمضان';
+        content = content
+            .filter(c => c.categories.includes('رمضان') && c.type === 'series')
+            .sort((a, b) => b.createdAt ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : 0);
+    }
+    else if (categoryTitle === 'برامج رمضان') {
+        title = 'برامج رمضان';
+        content = content
+            .filter(c => c.categories.includes('رمضان') && (c.type === 'program' || c.categories?.includes('برامج رمضان') || c.categories?.includes('برامج تلفزيونية')))
+            .sort((a, b) => b.createdAt ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : 0);
+    }
     else if (categoryTitle === 'newly-added') {
         title = 'أحدث الإضافات (الكل)';
         content = content.sort((a, b) => b.createdAt ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : 0);

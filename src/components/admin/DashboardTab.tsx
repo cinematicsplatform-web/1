@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Content } from '../../types';
+import { fetchTMDB } from '../../utils/tmdbUtils';
 import ToggleSwitch from '../ToggleSwitch';
 import { RefreshIcon } from './AdminIcons';
 import { BouncingDotsLoader } from '../BouncingDotsLoader';
@@ -81,8 +82,8 @@ const DashboardTab: React.FC<{stats: {totalMovies: number, totalSeries: number, 
 
         try {
             const [moviesRes, tvRes] = await Promise.all([
-                fetch(moviesUrl).then(r => r.json()),
-                fetch(tvUrl).then(r => r.json())
+                fetchTMDB(moviesUrl).then(r => r.json()),
+                fetchTMDB(tvUrl).then(r => r.json())
             ]);
 
             let movies = (moviesRes.results || []).map((i: any) => ({ ...i, media_type: 'movie' }));

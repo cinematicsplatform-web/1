@@ -79,6 +79,7 @@ const RequestsTab: React.FC<any> = ({ addToast, onRequestDelete }) => {
                             <thead className="bg-gray-800/50 text-xs uppercase font-bold text-gray-400">
                                 <tr>
                                     <th className="px-8 py-4">العنوان</th>
+                                    <th className="px-8 py-4">المستخدم</th>
                                     <th className="px-8 py-4">النوع</th>
                                     <th className="px-8 py-4">ملاحظات</th>
                                     <th className="px-8 py-4">التاريخ</th>
@@ -89,6 +90,18 @@ const RequestsTab: React.FC<any> = ({ addToast, onRequestDelete }) => {
                                 {requests.map(req => (
                                     <tr key={req.id} className="border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors">
                                         <td className="px-8 py-4 font-bold text-white">{req.title}</td>
+                                        <td className="px-8 py-4 text-gray-300">
+                                            {req.userName ? (
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-white">{req.userName}</span>
+                                                    {req.userId && <span className="text-[10px] text-gray-500 font-mono">{req.userId}</span>}
+                                                </div>
+                                            ) : req.userId ? (
+                                                <span className="font-mono text-xs text-gray-400">{req.userId}</span>
+                                            ) : (
+                                                <span className="text-gray-500 text-xs">زائر</span>
+                                            )}
+                                        </td>
                                         <td className="px-8 py-4">
                                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${req.type === 'movie' ? 'bg-blue-500/10 text-blue-400' : 'bg-purple-500/10 text-purple-400'}`}>{req.type === 'movie' ? 'فيلم' : 'مسلسل'}</span>
                                         </td>

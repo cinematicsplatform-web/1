@@ -7,6 +7,7 @@ import ContentEditModal from './ContentEditModal';
 import AdEditModal from './AdEditModal';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import SEO from './SeoMeta';
+import ShortcutsPage from './ShortcutsPage';
 
 // Import split components
 import DashboardTab from './admin/DashboardTab';
@@ -44,7 +45,13 @@ const ServerIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
-type AdminTab = 'dashboard' | 'content' | 'servers_domains' | 'content_radar' | 'top_content' | 'top10' | 'stories' | 'people' | 'users' | 'requests' | 'reports' | 'ads' | 'startup_ad' | 'promo_banners' | 'themes' | 'settings' | 'analytics' | 'notifications' | 'alerts' | 'app_config';
+const KeyboardIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm2 4h2v2H5V9zm4 0h2v2H9V9zm4 0h2v2h-2V9zm4 0h2v2h-2V9zM5 13h14v2H5v-2z" />
+    </svg>
+);
+
+type AdminTab = 'dashboard' | 'content' | 'servers_domains' | 'content_radar' | 'top_content' | 'top10' | 'stories' | 'people' | 'users' | 'requests' | 'reports' | 'ads' | 'startup_ad' | 'promo_banners' | 'themes' | 'settings' | 'analytics' | 'notifications' | 'alerts' | 'app_config' | 'shortcuts';
 
 interface RadarAlert {
     id: string;
@@ -85,6 +92,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     const [allContent, setAllContent] = useState<Content[]>([]);
     const [isLoadingContent, setIsLoadingContent] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [radarCount, setRadarCount] = useState(0);
     const [radarAlerts, setRadarAlerts] = useState<RadarAlert[]>([]);
     const [dismissedAlerts, setDismissedAlerts] = useState<string[]>(() => {
@@ -184,6 +192,22 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     
     const openContentModalForEdit = (c: Content) => { setEditingContent(c); setIsContentModalOpen(true); };
     const openContentModalForNew = () => { setEditingContent(null); setIsContentModalOpen(true); };
+    
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && (e.key === 'n' || e.key === 'N')) {
+                e.preventDefault();
+                openContentModalForNew();
+            } else if (e.ctrlKey && (e.key === 'b' || e.key === 'B')) {
+                e.preventDefault();
+                setIsSidebarCollapsed(prev => !prev);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
     
     const handleSaveContent = async (c: Content) => { 
         try { 
@@ -293,6 +317,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
             case 'analytics': return <AnalyticsTab allContent={allContent} allUsers={props.allUsers}/>;
             case 'app_config': return <AppConfigTab settings={props.siteSettings} onUpdate={props.onSetSiteSettings} />;
             case 'people': return <PeopleManagerTab addToast={props.addToast} />;
+            case 'shortcuts': return <ShortcutsPage siteSettings={props.siteSettings} onSetSiteSettings={props.onSetSiteSettings} addToast={props.addToast} isNestedInAdmin={true} />;
             case 'content_radar': return <ContentRadarTab addToast={props.addToast} onRequestDelete={confirmDeleteRadar} onEditContent={openContentModalForEdit} allPublishedContent={allContent} />;
             case 'alerts': return <AlertsTab alerts={radarAlerts} onGoToRadar={() => setActiveTab('content_radar')} onDismiss={handleDismissAlert} onClearAll={handleClearAllAlerts} />;
             case 'dashboard': default: return <DashboardTab stats={{totalMovies, totalSeries, totalUsers}} allContent={allContent} />;
@@ -320,6 +345,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         { id: 'notifications', label: 'إرسال إشعار', icon: BellIcon },
         { id: 'alerts', label: 'تنبيهات النظام', icon: BellIcon },
         { id: 'app_config', label: 'تطبيق الموبايل', icon: DevicePhoneMobileIcon },
+        { id: 'shortcuts', label: 'الاختصارات', icon: KeyboardIcon },
     ];
 
     const currentTabLabel = navItems.find(i => i.id === activeTab)?.label;
@@ -333,7 +359,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                 onClick={() => setIsSidebarOpen(false)} 
             />
 
-            <aside className={`fixed inset-y-0 right-0 z-[100] w-72 bg-[#0f1014] border-l border-gray-800 flex flex-col shadow-2xl transition-transform duration-300 lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
+            <aside className={`fixed inset-y-0 right-0 z-[100] w-72 bg-[#0f1014] border-l border-gray-800 flex flex-col shadow-2xl transition-all duration-300 ${isSidebarCollapsed ? 'lg:hidden lg:w-0 lg:opacity-0' : 'lg:relative lg:translate-x-0 lg:w-72 lg:opacity-100'} ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
                 <div className="p-8 border-b border-gray-800 flex flex-col items-center gap-3">
                     <div className="text-3xl font-extrabold cursor-default flex flex-row items-baseline gap-1 justify-center">
                         <span className="text-white font-['Cairo']">سينما</span>
@@ -394,8 +420,15 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                     <div className="flex items-center gap-4">
                         <button 
                             type="button" 
-                            onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
-                            className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors"
+                            onClick={() => {
+                                if (isSidebarCollapsed) {
+                                    setIsSidebarCollapsed(false);
+                                } else {
+                                    setIsSidebarOpen(!isSidebarOpen);
+                                }
+                            }} 
+                            className={`${isSidebarCollapsed ? 'flex' : 'lg:hidden'} p-2 text-gray-400 hover:text-white transition-colors`}
+                            title={isSidebarCollapsed ? 'عرض القائمة الجانبية' : 'تغيير القائمة الجانبية'}
                         >
                             <MenuIcon className="w-6 h-6" />
                         </button>
@@ -412,8 +445,8 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="relative mr-4">
-                             <button onClick={() => setActiveTab('alerts')} className="p-2.5 bg-gray-800/50 rounded-xl border border-gray-700 hover:bg-gray-700 transition-all text-gray-400 hover:text-white relative group">
+                        <div className="relative mr-4 flex items-center gap-2">
+                             <button onClick={() => setActiveTab('alerts')} className="p-2.5 bg-gray-800/50 rounded-xl border border-gray-700 hover:bg-gray-700 transition-all text-gray-400 hover:text-white relative group" title="تنبيهات النظام">
                                 <BellIcon className="w-6 h-6" />
                                 {radarCount > 0 && (
                                     <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-[#0f1014] shadow-lg group-hover:scale-110 transition-transform">
@@ -421,9 +454,10 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                                     </span>
                                 )}
                              </button>
-                        </div>
-                        <div className="px-3 py-1 bg-gray-900 rounded border border-gray-800 font-mono text-xs text-gray-400">
-                             v2.5.1
+
+                             <button onClick={() => setActiveTab('shortcuts')} className="p-2.5 bg-gray-800/50 rounded-xl border border-gray-700 hover:bg-gray-700 transition-all text-gray-400 hover:text-white relative group" title="الاختصارات">
+                                <KeyboardIcon className="w-6 h-6" />
+                             </button>
                         </div>
                     </div>
                 </header>
