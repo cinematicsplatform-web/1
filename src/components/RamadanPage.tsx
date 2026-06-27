@@ -183,7 +183,7 @@ const RamadanPage: React.FC<RamadanPageProps> = ({
     }
 
     const ramadanSeries = limit(allRamadanContent.filter(c => c.type === 'series'));
-    const ramadanPrograms = limit(allRamadanContent.filter(c => c.categories?.includes('برامج رمضان')));
+    const ramadanPrograms = limit(allRamadanContent.filter(c => c.type === 'program' || c.categories?.includes('برامج رمضان') || c.categories?.includes('برامج تلفزيونية')));
     
     const definedCarousels = [
         {

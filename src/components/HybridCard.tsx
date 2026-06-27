@@ -48,19 +48,20 @@ const HybridCard: React.FC<HybridCardProps> = ({
     
     const isInMyList = !!myList?.includes(content.id);
     const isExpanded = expandedIndex === index;
+    const isEpisodic = content.type === 'series' || content.type === 'program';
 
     // تحديد الموسم الأخير بناءً على نوع الكاروسيل:
     // - في كاروسيل "قريباً": نعرض الموسم الأخير المضاف (حتى لو كان قريباً).
     // - في باقي الكاروسيلات (مثل أحدث الإضافات): نعرض آخر موسم مفعل (ليس قريباً).
-    const latestSeason = content.type === 'series' && content.seasons && content.seasons.length > 0
+    const latestSeason = isEpisodic && content.seasons && content.seasons.length > 0
         ? isSoonCarousel
             ? [...content.seasons].sort((a, b) => b.seasonNumber - a.seasonNumber)[0]
             : [...content.seasons].filter(season => season.status !== 'coming_soon' && !season.isUpcoming).sort((a, b) => b.seasonNumber - a.seasonNumber)[0] || [...content.seasons].sort((a, b) => b.seasonNumber - a.seasonNumber)[0]
         : null;
 
-    const posterSrc = (content.type === 'series' && latestSeason?.poster) ? latestSeason.poster : content.poster;
-    const backdropSrc = (content.type === 'series' && latestSeason?.backdrop) ? latestSeason.backdrop : (content.backdrop || content.poster);
-    const logoSrc = (content.type === 'series' && latestSeason?.logoUrl) ? latestSeason.logoUrl : content.logoUrl;
+    const posterSrc = (isEpisodic && latestSeason?.poster) ? latestSeason.poster : content.poster;
+    const backdropSrc = (isEpisodic && latestSeason?.backdrop) ? latestSeason.backdrop : (content.backdrop || content.poster);
+    const logoSrc = (isEpisodic && latestSeason?.logoUrl) ? latestSeason.logoUrl : content.logoUrl;
 
     const getVideoId = (url: string | undefined) => {
         if (!url) return null;
@@ -72,7 +73,7 @@ const HybridCard: React.FC<HybridCardProps> = ({
         } catch (e) { return null; }
     };
 
-    const trailerUrl = (content.type === 'series' && latestSeason?.trailerUrl) ? latestSeason.trailerUrl : content.trailerUrl;
+    const trailerUrl = (isEpisodic && latestSeason?.trailerUrl) ? latestSeason.trailerUrl : content.trailerUrl;
     const trailerId = getVideoId(trailerUrl);
     const hasTrailer = !!trailerId;
 
@@ -126,7 +127,7 @@ const HybridCard: React.FC<HybridCardProps> = ({
     }, [isMuted, showVideo]);
 
     const seasonNumber = latestSeason ? latestSeason.seasonNumber : null;
-    const watchSubtitle = content.type === 'series' && seasonNumber ? `الموسم ${seasonNumber}، الحلقة 1` : content.releaseYear;
+    const watchSubtitle = isEpisodic && seasonNumber ? `الموسم ${seasonNumber}، الحلقة 1` : content.releaseYear;
     const genres = content.genres?.slice(0, 3).join(' • ');
 
     const idleWidthClass = 'w-[calc((100vw-40px)/2.25)] md:w-[calc((100vw-64px)/4.2)] lg:w-[calc((100vw-64px)/6)]';
