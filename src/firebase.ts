@@ -756,6 +756,20 @@ export const deleteServer = async (id: string): Promise<void> => {
   await db.collection('servers').doc(id).delete();
 };
 
+const getCleanedSlug = (slug: string): string => {
+    if (!slug) return '';
+    if (slug.endsWith('/')) return slug;
+    
+    // Check if the slug ends with an episode prefix pattern or symbol
+    const pattern = /[._\-\s/]([Ee]|[Ee][Pp]|[Hh])$/;
+    const endsWithSeparator = /[._\-]$/;
+    
+    if (pattern.test(slug) || endsWithSeparator.test(slug)) {
+        return slug;
+    }
+    return slug + '/';
+};
+
 export const resolveContentDynamicUrls = (contents: Content[], servers: GlobalServer[]): Content[] => {
     if (!servers || servers.length === 0) return contents;
     
@@ -890,7 +904,7 @@ export const resolveContentDynamicUrls = (contents: Content[], servers: GlobalSe
                                 numStr = epNum < 10 ? `0${epNum}` : `${epNum}`;
                             }
                             
-                            const cleanedSlug = slug.endsWith('/') ? slug : slug + '/';
+                            const cleanedSlug = getCleanedSlug(slug);
                             const cleanBaseDomain = baseDomain.endsWith('/') ? baseDomain.slice(0, -1) : baseDomain;
                             const dynamicUrl = `${cleanBaseDomain}/${cleanedSlug}${numStr}${suffix}`;
                             

@@ -1,9 +1,9 @@
 
 import React, { useMemo } from 'react';
 import type { Content, Person, View } from '@/types';
-import SEO from '../components/SeoMeta';
-import ContentCard from '../components/ContentCard';
-import { ChevronRightIcon } from '../components/icons/ChevronRight';
+import SEO from '@/components/SeoMeta';
+import ContentCard from '@/components/ContentCard';
+import { ChevronRightIcon } from '@/components/icons/ChevronRightIcon';
 
 // ✅ Corrected Silhouette Icon: Larger, flat-bottomed, feels part of the card
 export const UserIcon = (props: React.SVGProps<SVGSVGElement>) => (

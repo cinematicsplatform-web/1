@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import type { Content, View, Server } from '@/types';
-import SEO from '../components/SeoMeta';
-import { ChevronRightIcon } from '../components/icons/ChevronRight';
-import { DownloadIcon } from '../components/icons/DownloadIcon';
-import { StarIcon } from '../components/icons/StarIcon';
-import { ClockIcon } from '../components/icons/ClockIcon';
+import SEO from '@/components/SeoMeta';
+import { ChevronRightIcon } from '@/components/icons/ChevronRightIcon';
+import { DownloadIcon } from '@/components/icons/DownloadIcon';
+import { StarIcon } from '@/components/icons/StarIcon';
+import { ClockIcon } from '@/components/icons/ClockIcon';
 
 interface DownloadPageProps {
   content: Content;

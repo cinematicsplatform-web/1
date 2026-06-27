@@ -49,6 +49,7 @@ const PersonProfilePage = React.lazy(() => import('./pages/PersonProfilePage'));
 const DownloadPage = React.lazy(() => import('./pages/DownloadPage'));
 const AdGatePage = React.lazy(() => import('./components/AdGatePage'));
 const ContentRequestPage = React.lazy(() => import('./pages/ContentRequestPage'));
+const ShortcutsPage = React.lazy(() => import('./components/ShortcutsPage'));
 
 const CheckCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
@@ -1138,6 +1139,7 @@ const App: React.FC = () => {
            case 'copyright': return <CopyrightPage content={siteSettings.copyrightPolicy} onSetView={handleSetView} onGoBack={handleGoBack} returnView={returnView} isRamadanTheme={isRamadanTheme} isEidTheme={isEidTheme} isCosmicTealTheme={isCosmicTealTheme} isNetflixRedTheme={isNetflixRedTheme} />;
            case 'about': return <AboutPage onSetView={handleSetView} onGoBack={handleGoBack} returnView={returnView} isRamadanTheme={isRamadanTheme} isEidTheme={isEidTheme} isCosmicTealTheme={isCosmicTealTheme} isNetflixRedTheme={isNetflixRedTheme} />;
            case 'search': return <SearchPage allContent={allContent} onSelectContent={handleSelectContent} onSetView={handleSetView} onGoBack={handleGoBack} />;
+           case 'shortcuts': return <ShortcutsPage onSetView={handleSetView} onGoBack={handleGoBack} returnView={returnView} isRamadanTheme={isRamadanTheme} isEidTheme={isEidTheme} isCosmicTealTheme={isCosmicTealTheme} isNetflixRedTheme={isNetflixRedTheme} siteSettings={siteSettings} onSetSiteSettings={handleUpdateSiteSettings} addToast={addToast} />;
           default: return <HomePage allContent={allContent} pinnedContent={[]} onSelectContent={handleSelectContent} isLoggedIn={!!currentUser} myList={activeProfile?.myList} onToggleMyList={handleToggleMyList} ads={ads} siteSettings={siteSettings} onNavigate={handleSetView} activeProfile={activeProfile} isLoading={isContentLoading} promoBanners={promoBanners} />;
       }
   };
@@ -1145,7 +1147,7 @@ const App: React.FC = () => {
   const mobileCleanViews = ['myList', 'accountSettings', 'profileHub'];
   
   const headerAllowedViews: View[] = [
-    'home', 'series', 'movies', 'ramadan', 'kids', 'soon', 'detail'
+    'home', 'series', 'movies', 'ramadan', 'kids', 'soon', 'detail', 'shortcuts'
   ];
 
   const isForcedProfileSelection = !isAuthLoading && currentUser && currentUser.setupCompleted && !activeProfile && view !== 'profileSelector' && view !== 'accountSettings' && view !== 'admin' && view !== 'onboarding';
@@ -1159,7 +1161,7 @@ const App: React.FC = () => {
   
   const showGlobalFooter = !fullScreenViews.includes(view) && !isTv && !isMaintenanceActive;
   
-  const bottomNavRestrictedViews = ['home', 'movies', 'series', 'search', 'kids', 'ramadan'];
+  const bottomNavRestrictedViews = ['home', 'movies', 'series', 'search', 'kids', 'ramadan', 'shortcuts'];
   const showBottomNav = showGlobalFooter && !mobileCleanViews.includes(view) && view !== 'profileSelector' && bottomNavRestrictedViews.includes(view);
   
   const footerClass = (mobileCleanViews.includes(view) || view === 'search') ? 'hidden md:block' : '';

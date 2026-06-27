@@ -40,7 +40,7 @@ export const genres = [
 
 export type Genre = typeof genres[number];
 
-export type View = 'home' | 'movies' | 'series' | 'programs' | 'kids' | 'ramadan' | 'soon' | 'detail' | 'watch' | 'admin' | 'login' | 'register' | 'profileSelector' | 'accountSettings' | 'privacy' | 'copyright' | 'about' | 'myList' | 'category' | 'profileHub' | 'maintenance' | 'search' | 'welcome' | 'onboarding' | 'notifications' | 'appDownload' | 'people' | 'personProfile' | 'download' | 'adGate' | 'contentRequest';
+export type View = 'home' | 'movies' | 'series' | 'programs' | 'kids' | 'ramadan' | 'soon' | 'detail' | 'watch' | 'admin' | 'login' | 'register' | 'profileSelector' | 'accountSettings' | 'privacy' | 'copyright' | 'about' | 'myList' | 'category' | 'profileHub' | 'maintenance' | 'search' | 'welcome' | 'onboarding' | 'notifications' | 'appDownload' | 'people' | 'personProfile' | 'download' | 'adGate' | 'contentRequest' | 'shortcuts';
 
 export type LoginError = 'none' | 'userNotFound' | 'wrongPassword';
 
@@ -500,6 +500,8 @@ export interface ContentRequest {
     type: 'movie' | 'series';
     notes?: string;
     userId?: string | null; 
+    userName?: string | null;
+    requestId?: string | null;
     status: 'pending' | 'completed';
     createdAt: string; 
 }

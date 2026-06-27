@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { View, AppConfig } from '@/types';
-import SEO from '../components/SeoMeta';
-import { ChevronRightIcon } from '../components/icons/ChevronRight';
-import { StarIcon } from '../components/icons/StarIcon';
-import { DownloadIcon } from '../components/icons/DownloadIcon';
+import SEO from '@/components/SeoMeta';
+import { ChevronRightIcon } from '@/components/icons/ChevronRightIcon';
+import { StarIcon } from '@/components/icons/StarIcon';
+import { DownloadIcon } from '@/components/icons/DownloadIcon';
 
 interface AppPageProps {
   onSetView: (view: View) => void;

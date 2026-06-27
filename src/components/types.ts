@@ -386,6 +386,8 @@ export interface ContentRequest {
     type: 'movie' | 'series';
     notes?: string;
     userId?: string | null; // Allow null
+    userName?: string | null;
+    requestId?: string | null;
     status: 'pending' | 'completed';
     createdAt: string; // ISO String
 }

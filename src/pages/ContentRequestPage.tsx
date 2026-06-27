@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import type { View, User, ContentRequest } from '@/types';
-import { ChevronRightIcon } from '../components/icons/ChevronRight';
-import SEO from '../components/SeoMeta';
+import { ChevronRightIcon } from '@/components/icons/ChevronRightIcon';
+import SEO from '@/components/SeoMeta';
 import { addContentRequest, getContentRequests } from '../firebase';
-import { BouncingDotsLoader } from '../components/BouncingDotsLoader';
+import { BouncingDotsLoader } from '@/components/BouncingDotsLoader';
 
 interface ContentRequestPageProps {
   onSetView: (view: View) => void;
